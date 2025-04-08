@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "users",
+    "signals",  # Trading signals app
     "rest_framework",
     "rest_framework.authtoken",  # to avoid AttributeError: type object 'Token' has no attribute 'objects'
     "drf_spectacular",  # docs

@@ -7,6 +7,7 @@ from rest_framework.permissions import IsAdminUser, IsAuthenticated
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("", include("users.urls")),
+    path("api/signals/", include("signals.urls")),
     path(
         "docs/schema.yml",
         SpectacularAPIView.as_view(
