@@ -1,13 +1,15 @@
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import include, path, reverse_lazy
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.authentication import SessionAuthentication
-from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from rest_framework.permissions import IsAdminUser, IsAuthenticated, AllowAny
+from rest_framework.authentication import JWTAuthentication
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("", include("users.urls")),
-    path("api/signals/", include("signals.urls")),
+    path("auth/", include(("users.urls", "users"))),
+    path("api/v1/signals/", include(("signals.urls", "signals"))),
+    path("api/v1/pairs/", include(("pairs.urls", "pairs"))),
     path(
         "docs/schema.yml",
         SpectacularAPIView.as_view(
@@ -22,6 +24,15 @@ urlpatterns = [
             url_name="schema",
             permission_classes=[IsAuthenticated, IsAdminUser],
             authentication_classes=[SessionAuthentication],
+        ),
+        name="swagger-ui",
+    ),
+    path(
+        "api/docs/",
+        SpectacularSwaggerView.as_view(
+            url=reverse_lazy("schema"),
+            permission_classes=[AllowAny],
+            authentication_classes=[JWTAuthentication, SessionAuthentication],
         ),
         name="swagger-ui",
     ),
