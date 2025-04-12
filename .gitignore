@@ -21,3 +21,6 @@ schema.yml
 .vscode
 .DS_Store
 .idea
+
+src/venv/
+src/.venv/

@@ -10,6 +10,8 @@ urlpatterns = [
     path("auth/", include(("users.urls", "users"))),
     path("api/v1/signals/", include(("signals.urls", "signals"))),
     path("api/v1/pairs/", include(("pairs.urls", "pairs"))),
+    path("api/v1/subscriptions/", include(("subscriptions.urls", "subscriptions"))),
+    path("api/v1/chart-analysis/", include(("chart_analysis.urls", "chart_analysis"))),
     path(
         "docs/schema.yml",
         SpectacularAPIView.as_view(

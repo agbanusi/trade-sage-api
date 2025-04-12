@@ -30,6 +30,8 @@ INSTALLED_APPS = [
     "users",
     "signals",  # Trading signals app
     "pairs",    # Pattern recognition app
+    "subscriptions",  # Subscription & payment app
+    "chart_analysis",  # Chart analysis app
     "rest_framework",
     "rest_framework.authtoken",  # to avoid AttributeError: type object 'Token' has no attribute 'objects'
     "drf_spectacular",  # docs
@@ -44,6 +46,8 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # Custom middleware
+    "subscriptions.middleware.PremiumAccessMiddleware",
 ]
 
 ROOT_URLCONF = "app.urls"
@@ -183,6 +187,16 @@ DJOSER = {
 CORS_ALLOWED_ORIGINS = os.environ.get(
     "CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"
 ).split(",")
+
+# Stripe API settings
+STRIPE_API_KEY = os.environ.get("STRIPE_API_KEY", "")
+STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+STRIPE_PUBLIC_KEY = os.environ.get("STRIPE_PUBLIC_KEY", "")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+
+# Premium endpoints configuration
+from subscriptions.config import PREMIUM_ENDPOINTS
+PREMIUM_ENDPOINTS = PREMIUM_ENDPOINTS
 
 if DEBUG:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"

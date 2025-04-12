@@ -51,3 +51,5 @@ linter:
 
 test:
 	pytest -n $(pytest_workers) --cov=src/ --import-mode=importlib
+
+activate: source venv/bin/activate
