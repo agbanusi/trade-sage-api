@@ -45,6 +45,27 @@ class TechnicalIndicator(models.TextChoices):
     FIBONACCI = 'fib', 'Fibonacci Retracement'
 
 
+class UserIndicatorSettings(BaseModel):
+    """
+    Model to store user's indicator weights and active status for signal generation
+    """
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    indicator_type = models.CharField(
+        max_length=20,
+        choices=TechnicalIndicator.choices
+    )
+    weight = models.DecimalField(max_digits=3, decimal_places=1, default=0.5)
+    is_active = models.BooleanField(default=True)
+    indicator_parameters = models.JSONField(default=dict)
+    
+    class Meta:
+        unique_together = ('user', 'indicator_type')
+        verbose_name_plural = 'User Indicator Settings'
+    
+    def __str__(self):
+        return f"{self.indicator_type} settings for {self.user.email} (Weight: {self.weight})"
+
+
 class ChartAnalysis(BaseModel):
     """
     Model representing a chart analysis for a specific pair and timeframe

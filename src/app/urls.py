@@ -3,7 +3,7 @@ from django.urls import include, path, reverse_lazy
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.permissions import IsAdminUser, IsAuthenticated, AllowAny
-from rest_framework.authentication import JWTAuthentication
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 urlpatterns = [
     path("admin/", admin.site.urls),

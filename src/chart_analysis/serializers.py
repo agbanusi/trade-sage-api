@@ -10,7 +10,8 @@ from .models import (
     IndicatorPerformance,
     TimeframePerformance,
     PairPerformance,
-    RiskAnalysis
+    RiskAnalysis,
+    UserIndicatorSettings
 )
 
 
@@ -27,7 +28,8 @@ class ChartAnalysisSerializer(serializers.ModelSerializer):
     """
     Serializer for chart analysis
     """
-    pair_details = PairSerializer(source='pair', read_only=True)
+    pair_name = serializers.CharField(source='pair.name', read_only=True)
+    pair_display_name = serializers.CharField(source='pair.display_name', read_only=True)
     timeframe_display = serializers.CharField(source='get_timeframe_display', read_only=True)
     overall_signal_display = serializers.CharField(source='get_overall_signal_display', read_only=True)
     volatility_level_display = serializers.CharField(source='get_volatility_level_display', read_only=True)
@@ -35,47 +37,61 @@ class ChartAnalysisSerializer(serializers.ModelSerializer):
     class Meta:
         model = ChartAnalysis
         fields = [
-            'id', 'pair', 'pair_details', 'timeframe', 'timeframe_display',
+            'id', 'pair', 'pair_name', 'pair_display_name', 'timeframe', 'timeframe_display',
             'current_price', 'change_24h', 'high_24h', 'low_24h',
             'analysis_data', 'overall_signal', 'overall_signal_display',
             'volatility_level', 'volatility_level_display',
-            'created', 'updated'
+            'created_at', 'updated_at'
         ]
-        read_only_fields = ['created', 'updated']
+        read_only_fields = ['created_at', 'updated_at']
 
 
 class SavedIndicatorSerializer(serializers.ModelSerializer):
     """
     Serializer for saved indicators
     """
-    pair_details = PairSerializer(source='pair', read_only=True)
+    pair_name = serializers.CharField(source='pair.name', read_only=True)
     indicator_type_display = serializers.CharField(source='get_indicator_type_display', read_only=True)
     
     class Meta:
         model = SavedIndicator
         fields = [
-            'id', 'user', 'pair', 'pair_details', 'indicator_type', 
-            'indicator_type_display', 'settings', 'created', 'updated'
+            'id', 'pair', 'pair_name', 'user', 'timeframe',
+            'indicator_type', 'indicator_type_display', 'parameters',
+            'created_at', 'updated_at'
         ]
-        read_only_fields = ['created', 'updated']
+        read_only_fields = ['created_at', 'updated_at']
+
+
+class UserIndicatorSettingsSerializer(serializers.ModelSerializer):
+    indicator_name = serializers.CharField(source='get_indicator_type_display', read_only=True)
+    
+    class Meta:
+        model = UserIndicatorSettings
+        fields = [
+            'id', 'user', 'indicator_type', 'indicator_name', 
+            'weight', 'is_active', 'indicator_parameters', 
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['created_at', 'updated_at']
 
 
 class SupportResistanceLevelSerializer(serializers.ModelSerializer):
     """
     Serializer for support and resistance levels
     """
-    pair_details = PairSerializer(source='pair', read_only=True)
+    pair_name = serializers.CharField(source='pair.name', read_only=True)
     timeframe_display = serializers.CharField(source='get_timeframe_display', read_only=True)
     level_type_display = serializers.CharField(source='get_level_type_display', read_only=True)
     
     class Meta:
         model = SupportResistanceLevel
         fields = [
-            'id', 'pair', 'pair_details', 'timeframe', 'timeframe_display',
+            'id', 'pair', 'pair_name', 'user', 'timeframe', 'timeframe_display',
             'level_type', 'level_type_display', 'price_level', 'strength',
-            'created_by', 'created', 'updated'
+            'created_at', 'updated_at'
         ]
-        read_only_fields = ['created', 'updated']
+        read_only_fields = ['created_at', 'updated_at']
 
 
 class IndicatorChoiceSerializer(serializers.Serializer):

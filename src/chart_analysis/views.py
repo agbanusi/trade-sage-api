@@ -12,6 +12,7 @@ from subscriptions.utils import (
     get_user_limits,
     is_premium_timeframe
 )
+from django_filters.rest_framework import DjangoFilterBackend
 
 from .models import (
     Pair,
@@ -24,7 +25,8 @@ from .models import (
     IndicatorPerformance,
     TimeframePerformance,
     PairPerformance,
-    RiskAnalysis
+    RiskAnalysis,
+    UserIndicatorSettings
 )
 from .serializers import (
     PairSerializer,
@@ -37,8 +39,10 @@ from .serializers import (
     IndicatorPerformanceSerializer,
     TimeframePerformanceSerializer,
     PairPerformanceSerializer,
-    RiskAnalysisSerializer
+    RiskAnalysisSerializer,
+    UserIndicatorSettingsSerializer
 )
+from .filters import ChartAnalysisFilter, SavedIndicatorFilter
 
 logger = logging.getLogger(__name__)
 
@@ -590,3 +594,266 @@ class AdvancedAnalyticsViewSet(viewsets.ViewSet):
                 'winning_trades': random.randint(70, 300),
                 'losing_trades': random.randint(30, 200)
             }
+
+
+class UserIndicatorSettingsViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing user-specific indicator settings.
+    Allows users to configure weights and active status for indicators.
+    """
+    serializer_class = UserIndicatorSettingsSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        """Return indicator settings for the current user only"""
+        return UserIndicatorSettings.objects.filter(user=self.request.user)
+    
+    def perform_create(self, serializer):
+        """Set the user to the current user when creating a new setting"""
+        serializer.save(user=self.request.user)
+    
+    @action(detail=False, methods=['get'])
+    def default_settings(self, request):
+        """
+        Return default indicator settings for a new user.
+        Creates default settings if they don't exist.
+        """
+        # Default indicator settings
+        default_indicators = [
+            {'indicator_type': 'rsi', 'weight': 0.8, 'is_active': True, 
+             'indicator_parameters': {'period': 14, 'overbought': 70, 'oversold': 30}},
+            {'indicator_type': 'macd', 'weight': 0.7, 'is_active': True,
+             'indicator_parameters': {'fast_period': 12, 'slow_period': 26, 'signal_period': 9}},
+            {'indicator_type': 'bollinger', 'weight': 0.6, 'is_active': True,
+             'indicator_parameters': {'period': 20, 'std_dev': 2}},
+            {'indicator_type': 'ma', 'weight': 0.5, 'is_active': True,
+             'indicator_parameters': {'period': 50, 'type': 'SMA'}},
+            {'indicator_type': 'stoch', 'weight': 0.5, 'is_active': True,
+             'indicator_parameters': {'k_period': 14, 'd_period': 3}},
+        ]
+        
+        # Check if user has any settings
+        user_settings = self.get_queryset()
+        
+        # If user has no settings, create defaults
+        if not user_settings.exists():
+            for setting in default_indicators:
+                UserIndicatorSettings.objects.create(
+                    user=request.user,
+                    **setting
+                )
+            
+            # Fetch the newly created settings
+            user_settings = self.get_queryset()
+        
+        serializer = self.get_serializer(user_settings, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['put'])
+    def update_all(self, request):
+        """
+        Update multiple indicator settings in a single request.
+        
+        Expected format:
+        {
+            "settings": [
+                {"id": 1, "weight": 0.9, "is_active": true, ...},
+                {"id": 2, "weight": 0.5, "is_active": false, ...},
+                ...
+            ]
+        }
+        """
+        settings_data = request.data.get('settings', [])
+        response_data = []
+        
+        for setting in settings_data:
+            try:
+                instance = UserIndicatorSettings.objects.get(
+                    id=setting.get('id'), 
+                    user=request.user
+                )
+                serializer = self.get_serializer(
+                    instance, 
+                    data=setting, 
+                    partial=True
+                )
+                if serializer.is_valid():
+                    serializer.save()
+                    response_data.append(serializer.data)
+                else:
+                    return Response(
+                        serializer.errors, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            except UserIndicatorSettings.DoesNotExist:
+                return Response(
+                    {"detail": f"Setting with id {setting.get('id')} not found"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+        
+        return Response(response_data)
+
+    @action(detail=False, methods=['post'])
+    def generate_signals(self, request):
+        """
+        Generate signals based on user's indicator settings
+        
+        Expected format:
+        {
+            "pair_id": 1,
+            "timeframe": "1h"
+        }
+        
+        Returns:
+        {
+            "signals": {
+                "overall": "buy"|"sell"|"neutral",
+                "strength": 0.75,
+                "indicators": [
+                    {
+                        "name": "RSI",
+                        "signal": "buy",
+                        "value": 28,
+                        "weight": 0.8,
+                        "contribution": 0.8,
+                        "parameters": {...}
+                    },
+                    ...
+                ]
+            }
+        }
+        """
+        pair_id = request.data.get('pair_id')
+        timeframe = request.data.get('timeframe')
+        
+        if not pair_id or not timeframe:
+            return Response(
+                {"detail": "pair_id and timeframe are required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        try:
+            pair = Pair.objects.get(id=pair_id)
+        except Pair.DoesNotExist:
+            return Response(
+                {"detail": "Pair not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+            
+        # Get active indicator settings for the user
+        indicator_settings = self.get_queryset().filter(is_active=True)
+        
+        if not indicator_settings.exists():
+            return Response(
+                {"detail": "No active indicators found. Please configure your indicators first."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        # This would be where we'd fetch real-time market data for the pair
+        # For now, we'll simulate signal generation with mock data
+        
+        # Simulate indicator signals
+        indicator_signals = []
+        total_weight = 0
+        weighted_signal_value = 0
+        
+        for setting in indicator_settings:
+            signal = self._calculate_indicator_signal(
+                setting.indicator_type,
+                pair,
+                timeframe,
+                setting.indicator_parameters
+            )
+            
+            # Convert signal to numeric value: buy=1, neutral=0, sell=-1
+            signal_value = 1 if signal['signal'] == 'buy' else (-1 if signal['signal'] == 'sell' else 0)
+            
+            # Apply weight
+            weight = float(setting.weight)
+            contribution = signal_value * weight
+            weighted_signal_value += contribution
+            total_weight += weight
+            
+            indicator_signals.append({
+                'name': setting.get_indicator_type_display(),
+                'signal': signal['signal'],
+                'value': signal['value'],
+                'weight': weight,
+                'contribution': contribution,
+                'parameters': setting.indicator_parameters
+            })
+        
+        # Calculate overall signal
+        if total_weight > 0:
+            overall_strength = weighted_signal_value / total_weight
+        else:
+            overall_strength = 0
+            
+        if overall_strength > 0.3:
+            overall_signal = 'buy'
+        elif overall_strength < -0.3:
+            overall_signal = 'sell'
+        else:
+            overall_signal = 'neutral'
+            
+        response_data = {
+            'signals': {
+                'overall': overall_signal,
+                'strength': abs(overall_strength),
+                'indicators': indicator_signals
+            }
+        }
+        
+        return Response(response_data)
+    
+    def _calculate_indicator_signal(self, indicator_type, pair, timeframe, parameters):
+        """
+        Calculate signal for a specific indicator
+        
+        This is a simplified mock implementation. In a real application,
+        this would fetch market data and calculate actual indicator values.
+        """
+        import random
+        
+        # Mock data for demonstration - would be replaced with actual calculations
+        mock_signals = {
+            'rsi': {
+                'signal': random.choice(['buy', 'sell', 'neutral']),
+                'value': random.randint(1, 100)
+            },
+            'macd': {
+                'signal': random.choice(['buy', 'sell', 'neutral']),
+                'value': random.uniform(-2, 2)
+            },
+            'bollinger': {
+                'signal': random.choice(['buy', 'sell', 'neutral']),
+                'value': random.uniform(-2, 2)
+            },
+            'ma': {
+                'signal': random.choice(['buy', 'sell', 'neutral']),
+                'value': random.uniform(-5, 5)
+            },
+            'stoch': {
+                'signal': random.choice(['buy', 'sell', 'neutral']),
+                'value': random.randint(1, 100)
+            },
+            'ema': {
+                'signal': random.choice(['buy', 'sell', 'neutral']),
+                'value': random.uniform(-5, 5)
+            },
+            'adx': {
+                'signal': random.choice(['buy', 'sell', 'neutral']),
+                'value': random.randint(1, 100)
+            },
+            'ichimoku': {
+                'signal': random.choice(['buy', 'sell', 'neutral']),
+                'value': random.uniform(-2, 2)
+            },
+            'fib': {
+                'signal': random.choice(['buy', 'sell', 'neutral']),
+                'value': random.uniform(0, 1)
+            }
+        }
+        
+        # Return mock signal for the requested indicator
+        return mock_signals.get(indicator_type, {'signal': 'neutral', 'value': 0})

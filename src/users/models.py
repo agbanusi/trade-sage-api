@@ -3,6 +3,7 @@
 from core.models import BaseModel
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.db import models
+from django.conf import settings
 
 
 class UserManager(BaseUserManager):
@@ -63,3 +64,41 @@ class User(AbstractBaseUser, BaseModel):
         "Is the user a member of staff?"
         # Simplest possible answer: All admins are staff
         return self.is_admin
+
+
+class NotificationSettings(models.Model):
+    """
+    Model to store user notification preferences
+    """
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='notification_settings')
+    
+    # Notification types
+    signal_notifications = models.BooleanField(default=True)
+    
+    # Notification methods
+    email_notifications = models.BooleanField(default=True)
+    push_notifications = models.BooleanField(default=True)
+    sound_alerts = models.BooleanField(default=True)
+    
+    # Alert types
+    signal_alerts = models.BooleanField(default=True)
+    price_alerts = models.BooleanField(default=True)
+    pattern_recognition = models.BooleanField(default=True)
+    economic_news_alerts = models.BooleanField(default=False)
+    
+    # Signal frequency
+    max_signals_per_day = models.IntegerField(default=15)
+    
+    # Signal quality filter - options: high, medium, all
+    QUALITY_CHOICES = [
+        ('high', 'High quality signals only (70%+ confidence)'),
+        ('medium', 'Medium and high quality (50%+ confidence)'),
+        ('all', 'All signals')
+    ]
+    signal_quality_filter = models.CharField(max_length=10, choices=QUALITY_CHOICES, default='high')
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return f"Notification settings for {self.user.email}"
